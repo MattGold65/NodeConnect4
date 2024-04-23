@@ -1,0 +1,21 @@
+<html>
+<head>
+<link rel="stylesheet" href="stylesheets/Connect4.css">
+<title>Connect 4 Board</title>
+</head>
+<body>
+<div id="message"></div>
+
+<div class="board"></div>
+
+<script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const name = urlParams.get('message');
+    if (name) {
+      document.getElementById('message').innerHTML = name;
+    }
+</script>
+
+<script src="javascripts/Connect4.js"></script>
+</body>
+</html>
