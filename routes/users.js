@@ -1,8 +1,5 @@
 var express = require('express');
 var router = express.Router();
-var tableName = `connect4_moves_${Date.now()}`
-var gameBoard = [];
-
 var path = require('path');
 var env = require('dotenv').config();
 
@@ -12,208 +9,128 @@ const client = new Client({
 }); 
 client.connect();
 
+var passport = require('passport');
+var bcrypt = require('bcryptjs');
 
-router.get('/', function(req, res, next) {
-   // Execute the SQL statement to create the table
+router.get('/logout', function(req, res, next){
+  req.logout(function(err) {
+    if (err) {
+      console.log("unable to logout:", err);
+      return next(err);
+    }
+  });   //passport provide it
+  res.redirect('/'); // Successful. redirect to localhost:3000/
+});
 
-   const createTableQuery = `
-   CREATE TABLE IF NOT EXISTS ${tableName} (
-       id SERIAL PRIMARY KEY,
-       player VARCHAR(10) NOT NULL,
-       column_number INT NOT NULL,
-       row_number INT NOT NULL,
-       move_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-   )
+function loggedIn(req, res, next) {
+  if (req.user) {
+    next(); // req.user exists, go to the next function (right after loggedIn)
+  } else {
+    res.redirect('/login'); // user doesn't exists redirect to localhost:3000/users/login
+  }
+}
+
+router.get('/profile',loggedIn, function(req, res){
+  // req.user: passport middleware adds "user" object to HTTP req object
+  res.sendFile(path.join(__dirname,'..', 'public','profile.html'));
+});
+
+function notLoggedIn(req, res, next) {
+  if (!req.user) {
+    next();
+  } else {
+    let prefer = req.user.prefer;
+    res.redirect('/users/profile?name='+prefer);
+  }
+}
+
+// localhost:3000/users/login
+router.get('/login', notLoggedIn, function(req, res){
+  //success is set true in sign up page
+  res.sendFile(path.join(__dirname,'..', 'public','login.html'));
+});
+
+// localhost:3000/users/login
+router.post('/login',
+  // This is where authentication happens - app.js
+  // authentication locally (not using passport-google, passport-twitter, passport-github...)
+  passport.authenticate('local', { failureRedirect: 'login?message=Incorrect+credentials', failureFlash:true }),
+  function(req, res,next) {
+    let prefer = req.user.prefer;
+    console.log("fullname: ", prefer);
+    res.redirect('/users/profile?name='+prefer); // Successful. redirect to localhost:3000/users/profile
+});
+
+router.get('/signup',function(req, res) {
+  // If logged in, go to profile page
+  if(req.user) {
+    let prefer = req.user.prefer;
+    return res.redirect('/users/profile?name='+prefer);
+  }
+  res.sendFile(path.join(__dirname,'..', 'public','signup.html'));
+});
+
+function createUser(req, res, next){
+  var salt = bcrypt.genSaltSync(10);
+  var password = bcrypt.hashSync(req.body.password, salt);
+
+  client.query('INSERT INTO Connect4users (username, password, fullname, prefer) VALUES($1, $2, $3, $4)', [req.body.username, password,req.body.fullname,req.body.prefer], function(err, result) {
+    if (err) {
+      console.log("unable to query INSERT");
+      return next(err); // throw error to error.hbs.
+    }
+    console.log("User creation is successful");
+    res.redirect('/users/login?message=We+created+your+account+successfully!');
+  });
+
+  // Define the name of the table to store game board state
+const tableGameboard = 'connect4_game_state_'+ req.body.username;
+
+// Create the table if it doesn't exist
+  // creates user gameboard table
+  const createTableGameboardQuery = `
+CREATE TABLE IF NOT EXISTS ${tableGameboard} (
+    id SERIAL PRIMARY KEY,
+    row_number INT NOT NULL,
+    column_number INT NOT NULL,
+    cell_state INT NOT NULL
+)
 `;
-client.query(createTableQuery)
-.then((result) => {
-    console.log('Table created successfully:', result.command);
-    res.sendFile(path.join(__dirname, '..', 'public', 'Connect4.html'));
-})
-.catch((error) => {
-    console.error('Error creating table:', error);
-    // Respond with an error
-    res.status(500).json({ error: 'Error creating table' });
-});
+client.query(createTableGameboardQuery)
+  .then(result => console.log('User table created successfully'))
+  .catch(error => console.error('Error creating gameboard table:', error));
 
-  //rows
-  for (let i = 0; i < 6; i++) {
-    gameBoard[i] = [];
-  //columns
-    for (let j = 0; j < 7; j++) {
-      gameBoard[i][j] = 0; 
-    }
-  }
+  var tableMoves = `connect4_moves_` + req.body.username;
 
-res.sendFile(path.join(__dirname,'..', 'public','Connect4.html'));
-});
-
-// GET users listing. 
-// init new table
-router.get('/', function(req, res, next) {
-  res.send('respond with a resource');
-});
-
-
-// Define the route handler for POST requests
-
-// gets what user clicked on
-// inserts users info into database
-// checks for winner --> if winner post winner
-router.post('/', function(req, res, next){
-  // Extract data from the request body
-  const { row, column, player } = req.body;
-  
-  
-  client.query(`INSERT INTO ${tableName} (player, column_number, row_number) VALUES($1, $2, $3)`, [player, column, row], function(err, result) {
-    if (err) {
-      console.log("unable to query INSERT");
-      next(err);
-    }
-  });
-
-  client.query(`Select column_number, row_number FROM ${tableName} WHERE player = $1`, [player], (err, result) => {
-    if (err) {
-      console.log("unable to query INSERT");
-      next(err);
-    }
-
-    const columns = result.rows.map(row => row.column_number);
-    const rows = result.rows.map(row => row.row_number);
-    const numrows = rows.length;
-
-    //get the last row and column from table
-    const rowIndex = rows[numrows - 1];
-    const colIndex = columns[numrows - 1];
-    
-    //insert into gameboard
-    //red hot encode Red as 1 and Yellow as 2
-      if(player == "Red"){
-        gameBoard[rowIndex][colIndex] = 1;
-      } else if(player =="Yellow"){
-        gameBoard[rowIndex][colIndex] = 2;
-      }
-
-    //Condition 1 - Horizontally
-    console.log("Checking for winner...");
-    for (let i = 0; i < 6; i++) {
-        for (let j = 0; j < 7; j++) {
-
-          const cell1 = gameBoard[i][j];   
-          const cell2 = gameBoard[i][j + 1];
-          const cell3 = gameBoard[i][j + 2];
-          const cell4 = gameBoard[i][j + 3];
-
-
-          // Check if all four cells exist and have the same class
-          if ((cell1 == 1) && (cell2 == 1) && (cell3 == 1) && (cell4 == 1)) {
-              // If so, set the winner
-              console.log("Red Wins");
-              res.json({ message: '/Connect4?message=RED+Has+Won!!!'});
-              return;
-          }
-
-          if ((cell1 == 2) && (cell2 == 2) && (cell3 == 2) && (cell4 == 2)) {
-            // If so, set the winner
-            console.log("Yellow Wins");
-            res.json({ message: '/Connect4?message=YELLOW+Has+Won!!!'});
-            return;
-        }
-           
-        }
-    }
-
-   //Condition 2 - Vertically
-   // understand logic
-  for (let i = 0; i < 3; i++) {
-    for (let j = 0; j < 7; j++) {
-
-        const cell1 = gameBoard[i][j];   
-        const cell2 = gameBoard[i+1][j];
-        const cell3 = gameBoard[i+2][j];
-        const cell4 = gameBoard[i+3][j];
-
-
-        // Check if all four cells exist and have the same class
-        if ((cell1 == 1) && (cell2 == 1) && (cell3 == 1) && (cell4 == 1)) {
-            // If so, set the winner
-            console.log("Red Wins");
-            res.json({ message: '/Connect4?message=RED+Has+Won!!!'});
-        }
-
-        if ((cell1 == 2) && (cell2 == 2) && (cell3 == 2) && (cell4 == 2)) {
-          // If so, set the winner
-          console.log("Yellow Wins");
-          res.json({ message: '/Connect4?message=YELLOW+Has+Won!!!'});
-          return;
-
-        }
-        }
-    }
-
-  // Check for diagonal win from bottom-left to top-right
-  for (let i = 3; i < 6; i++) { // Start from the 4th row from the bottom
-    for (let j = 0; j < 4; j++) { // Start from the leftmost column
-
-      const cell1 = gameBoard[i][j];   
-      const cell2 = gameBoard[i - 1][j + 1];
-      const cell3 = gameBoard[i - 2][j + 2];
-      const cell4 = gameBoard[i - 3][j + 3];
-
-      // Check if all four cells exist and have the same class
-      if ((cell1 == 1) && (cell2 == 1) && (cell3 == 1) && (cell4 == 1)) {
-        // If so, set the winner
-        console.log("Red Wins");
-        res.json({ message: '/Connect4?message=RED+Has+Won!!!'});
-        return;
-    }
-
-    if ((cell1 == 2) && (cell2 == 2) && (cell3 == 2) && (cell4 == 2)) {
-      // If so, set the winner
-      console.log("Yellow Wins");
-      res.json({ message: '/Connect4?message=YELLOW+Has+Won!!!'});
-      return;
-
-    }
-       
-    }
+  const createTableMovesQuery = `
+  CREATE TABLE IF NOT EXISTS ${tableMoves} (
+      id SERIAL PRIMARY KEY,
+      player VARCHAR(10) NOT NULL,
+      column_number INT NOT NULL,
+      row_number INT NOT NULL,
+      move_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`;
+client.query(createTableMovesQuery)
+.then(result => console.log('User table created successfully'))
+.catch(error => console.error('Error creating moves table:', error));
 }
 
-
-// Check for diagonal win from top-left to bottom-right
-for (let i = 0; i < 3; i++) { // Start from the top row
-  for (let j = 0; j < 4; j++) { // Start from the leftmost column
-
-      const cell1 = gameBoard[i][j];   
-      const cell2 = gameBoard[i + 1][j + 1];
-      const cell3 = gameBoard[i + 2][j + 2];
-      const cell4 = gameBoard[i + 3][j + 3];
-
-         // Check if all four cells exist and have the same class
-         if ((cell1 == 1) && (cell2 == 1) && (cell3 == 1) && (cell4 == 1)) {
-          // If so, set the winner
-          console.log("Red Wins");
-          res.json({ message: '/Connect4?message=RED+Has+Won!!!'});
-          return;
-      }
-  
-      if ((cell1 == 2) && (cell2 == 2) && (cell3 == 2) && (cell4 == 2)) {
-        // If so, set the winner
-        console.log("Yellow Wins");
-        res.json({ message: '/Connect4?message=YELLOW+Has+Won!!!'});
-        return;
-  
-      }
-
-  }
-}
-
-   res.json({ message: 'Received row and column data' });
+router.post('/signup', function(req, res, next) {
+  client.query('SELECT * FROM Connect4users WHERE username=$1',[req.body.username], function(err,result){
+    if (err) {
+      console.log("sql error ");
+      next(err); // throw error to error.hbs.
+    }
+    else if (result.rows.length > 0) {
+      console.log("user exists");
+      res.redirect('/users/signup?error=User+exists');
+    }
+    else {
+      console.log("no user with that name");
+      createUser(req, res, next);
+    }
   });
-
-  });
-
-  
-
+});
 
 module.exports = router;

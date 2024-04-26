@@ -2,7 +2,7 @@ var express = require('express');
 var router = express.Router();
 var path = require('path');
 var env = require('dotenv').config();
-var tableName = `connect4_moves_${Date.now()}`
+var tableMoves = `connect4_moves_`;
 var gameBoard = [];
 
 const Client = require('pg').Client;
@@ -14,30 +14,115 @@ client.connect();
 var passport = require('passport');
 var bcrypt = require('bcryptjs');
 
+
+
+
+
+
+
+
+
+
+
+
+// Function to save the game board state to the database
+//needs fixing
+function saveGameBoardState(gameBoard,req) {
+  // Flatten the game board array into rows of (row_number, column_number, cell_state)
+  const rows = [];
+  for (let i = 0; i < gameBoard.length; i++) {
+    for (let j = 0; j < gameBoard[i].length; j++) {
+      rows.push([i, j, gameBoard[i][j]]);
+    }
+  }
+  // Define the name of the table to store game board state
+  const tableGameboard = 'connect4_game_state_'+ req.user.username;
+  // Construct the query to insert or update the game board state
+  const insertQuery = `
+  INSERT INTO ${tableGameboard} (row_number, column_number, cell_state)
+  VALUES ($1, $2, $3)
+  ON CONFLICT (row_number, column_number)
+  DO UPDATE SET cell_state = EXCLUDED.cell_state
+  `;
+  
+  // Execute the query
+  return client.query(insertQuery, rows);
+}
+
+// Function to retrieve the game board state from the database
+function getGameBoardState(req) {
+   // Define the name of the table to store game board state
+  const tableGameboard = 'connect4_game_state_'+ req.user.username;
+  const query = `SELECT * FROM ${tableGameboard}`;
+  return client.query(query)
+    .then(result => {
+      // Initialize gameBoard with zeros
+      gameBoard = Array.from({ length: 6 }, () => Array(7).fill(0));
+      
+      // Update gameBoard with values from the database
+      result.rows.forEach(row => {
+        gameBoard[row.row_number][row.column_number] = row.cell_state;
+      });
+      
+      return gameBoard;
+    })
+    .catch(error => {
+      console.error('Error retrieving game board state:', error);
+      return null;
+    });
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 //This router.get needs to get cleaned up when we build login
 router.get('/', function(req, res, next) {
     // Execute the SQL statement to create the table
- 
-    const createTableQuery = `
-    CREATE TABLE IF NOT EXISTS ${tableName} (
-        id SERIAL PRIMARY KEY,
-        player VARCHAR(10) NOT NULL,
-        column_number INT NOT NULL,
-        row_number INT NOT NULL,
-        move_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
- `;
- client.query(createTableQuery)
- .then((result) => {
-     console.log('Table created successfully:', result.command);
-     res.sendFile(path.join(__dirname, '..', 'public', 'Connect4.html'));
- })
- .catch((error) => {
-     console.error('Error creating table:', error);
-     // Respond with an error
-     res.status(500).json({ error: 'Error creating table' });
- });
- 
+  res.sendFile(path.join(__dirname, '..', 'public', 'Connect4.html'));
+
+  gameBoard = getGameBoardState(req);
+
+  /*
    //rows
    for (let i = 0; i < 6; i++) {
      gameBoard[i] = [];
@@ -46,8 +131,7 @@ router.get('/', function(req, res, next) {
        gameBoard[i][j] = 0; 
      }
    }
- 
- res.sendFile(path.join(__dirname,'..', 'public','Connect4.html'));
+   */
  });
  
  // GET users listing. 
@@ -62,16 +146,18 @@ router.get('/', function(req, res, next) {
  router.post('/', function(req, res, next){
    // Extract data from the request body
    const { row, column, player } = req.body;
+
+   console.log(req.user.username);
    
    
-   client.query(`INSERT INTO ${tableName} (player, column_number, row_number) VALUES($1, $2, $3)`, [player, column, row], function(err, result) {
+   client.query(`INSERT INTO ${tableMoves + req.user.username} (player, column_number, row_number) VALUES($1, $2, $3)`, [player, column, row], function(err, result) {
      if (err) {
        console.log("unable to query INSERT");
        next(err);
      }
    });
  
-   client.query(`Select column_number, row_number FROM ${tableName} WHERE player = $1`, [player], (err, result) => {
+   client.query(`Select column_number, row_number FROM ${tableMoves + req.user.username} WHERE player = $1`, [player], (err, result) => {
      if (err) {
        console.log("unable to query INSERT");
        next(err);
@@ -207,6 +293,7 @@ router.get('/', function(req, res, next) {
  }
  
     res.json({ message: 'Received row and column data' });
+    saveGameBoardState(gameBoard,req);
    });
  
    });
