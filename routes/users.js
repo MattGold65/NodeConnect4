@@ -12,6 +12,20 @@ client.connect();
 var passport = require('passport');
 var bcrypt = require('bcryptjs');
 
+// Assuming you have a database connection named `db`
+
+// Function to insert values into the table
+async function insertValues(id, rowNumber, columnNumber, cellState, tablename) {
+  try {
+      // Assuming you have a table named 'game_table'
+      const query = `INSERT INTO ${tablename} (id, row_number, column_number, cell_state) VALUES ($1, $2, $3, $4)`;
+      await client.query(query, [id, rowNumber, columnNumber, cellState]);
+      console.log(`Inserted values for id ${id}`);
+  } catch (error) {
+      console.error("Error inserting values:", error);
+  }
+}
+
 router.get('/logout', function(req, res, next){
   req.logout(function(err) {
     if (err) {
@@ -99,6 +113,18 @@ CREATE TABLE IF NOT EXISTS ${tableGameboard} (
 client.query(createTableGameboardQuery)
   .then(result => console.log('User table created successfully'))
   .catch(error => console.error('Error creating gameboard table:', error));
+
+  // Loop to insert values into the table
+for (let row = 0; row < 6; row++) {
+  for (let col = 0; col < 7; col++) {
+      // Example values to insert, modify as needed
+      const id = row * 7 + col + 1; // Assuming 1-based id
+      const cellState = 0; // Example cell state, modify as needed
+
+      // Insert values into the table
+      insertValues(id, row, col, cellState, tableGameboard);
+  }
+}
 
   var tableMoves = `connect4_moves_` + req.body.username;
 

@@ -2,8 +2,8 @@ var express = require('express');
 var router = express.Router();
 var path = require('path');
 var env = require('dotenv').config();
-var tableMoves = `connect4_moves_`;
-var gameBoard = [];
+var tableMoves = `connect4_game_state_`;
+
 
 const Client = require('pg').Client;
 const client = new Client({
@@ -14,124 +14,10 @@ client.connect();
 var passport = require('passport');
 var bcrypt = require('bcryptjs');
 
-
-
-
-
-
-
-
-
-
-
-
-// Function to save the game board state to the database
-//needs fixing
-function saveGameBoardState(gameBoard,req) {
-  // Flatten the game board array into rows of (row_number, column_number, cell_state)
-  const rows = [];
-  for (let i = 0; i < gameBoard.length; i++) {
-    for (let j = 0; j < gameBoard[i].length; j++) {
-      rows.push([i, j, gameBoard[i][j]]);
-    }
-  }
-  // Define the name of the table to store game board state
-  const tableGameboard = 'connect4_game_state_'+ req.user.username;
-  // Construct the query to insert or update the game board state
-  const insertQuery = `
-  INSERT INTO ${tableGameboard} (row_number, column_number, cell_state)
-  VALUES ($1, $2, $3)
-  ON CONFLICT (row_number, column_number)
-  DO UPDATE SET cell_state = EXCLUDED.cell_state
-  `;
-  
-  // Execute the query
-  return client.query(insertQuery, rows);
-}
-
-// Function to retrieve the game board state from the database
-function getGameBoardState(req) {
-   // Define the name of the table to store game board state
-  const tableGameboard = 'connect4_game_state_'+ req.user.username;
-  const query = `SELECT * FROM ${tableGameboard}`;
-  return client.query(query)
-    .then(result => {
-      // Initialize gameBoard with zeros
-      gameBoard = Array.from({ length: 6 }, () => Array(7).fill(0));
-      
-      // Update gameBoard with values from the database
-      result.rows.forEach(row => {
-        gameBoard[row.row_number][row.column_number] = row.cell_state;
-      });
-      
-      return gameBoard;
-    })
-    .catch(error => {
-      console.error('Error retrieving game board state:', error);
-      return null;
-    });
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 //This router.get needs to get cleaned up when we build login
 router.get('/', function(req, res, next) {
     // Execute the SQL statement to create the table
   res.sendFile(path.join(__dirname, '..', 'public', 'Connect4.html'));
-
-  gameBoard = getGameBoardState(req);
-
-  /*
-   //rows
-   for (let i = 0; i < 6; i++) {
-     gameBoard[i] = [];
-   //columns
-     for (let j = 0; j < 7; j++) {
-       gameBoard[i][j] = 0; 
-     }
-   }
-   */
  });
  
  // GET users listing. 
@@ -143,41 +29,54 @@ router.get('/', function(req, res, next) {
  // gets what user clicked on
  // inserts users info into database
  // checks for winner --> if winner post winner
- router.post('/', function(req, res, next){
-   // Extract data from the request body
-   const { row, column, player } = req.body;
+ router.post('/', async function(req, res, next){
+   
+  let gameBoard = []; // Define gameboard outside the loop
+  let cellstate = 0;
 
-   console.log(req.user.username);
-   
-   
-   client.query(`INSERT INTO ${tableMoves + req.user.username} (player, column_number, row_number) VALUES($1, $2, $3)`, [player, column, row], function(err, result) {
-     if (err) {
-       console.log("unable to query INSERT");
-       next(err);
-     }
-   });
- 
-   client.query(`Select column_number, row_number FROM ${tableMoves + req.user.username} WHERE player = $1`, [player], (err, result) => {
-     if (err) {
-       console.log("unable to query INSERT");
-       next(err);
-     }
- 
-     const columns = result.rows.map(row => row.column_number);
-     const rows = result.rows.map(row => row.row_number);
-     const numrows = rows.length;
- 
-     //get the last row and column from table
-     const rowIndex = rows[numrows - 1];
-     const colIndex = columns[numrows - 1];
-     
-     //insert into gameboard
-     //red hot encode Red as 1 and Yellow as 2
-       if(player == "Red"){
-         gameBoard[rowIndex][colIndex] = 1;
-       } else if(player =="Yellow"){
-         gameBoard[rowIndex][colIndex] = 2;
-       }
+  // Extract data from the request body
+  const { row, column, player } = req.body;
+
+  if (player == "Red"){
+    cellstate = 1;
+  } else if (player == "Yellow"){
+    cellstate = 2;
+  }
+
+
+  //insert move into gameboard
+  await client.query(`UPDATE ${tableMoves + req.user.username} SET cell_state = $1 WHERE column_number = $2 AND row_number = $3`, [cellstate, column, row], (err, result) => {
+    if (err) {
+      console.log("unable to query UPDATE");
+      next(err);
+      return; // Exit callback if error
+    }
+    });
+
+
+  //get latest gameboard
+  //get latest gameboard
+for (let row = 0; row < 6; row++) {
+  gameBoard[row] = []; // Initialize inner array
+  for (let col = 0; col < 7; col++) {
+    try {
+      const result = await client.query(`SELECT cell_state FROM ${tableMoves + req.user.username} WHERE column_number = $1 AND row_number = $2`, [col, row]);
+      if (result.rows.length > 0) {
+        console.log(result.rows[0].cell_state); // Access the cell_state value from the result
+        gameBoard[row][col] = result.rows[0].cell_state;
+      } else {
+        // Handle case when no rows are returned
+        console.log(`No data found for row ${row}, column ${col}`);
+      }
+    } catch (err) {
+      console.log("Unable to query SELECT:", err);
+      // Handle the error if needed
+    }
+  }
+}
+
+
+  console.log(gameBoard);
  
      //Condition 1 - Horizontally
      console.log("Checking for winner...");
@@ -192,6 +91,14 @@ router.get('/', function(req, res, next) {
  
            // Check if all four cells exist and have the same class
            if ((cell1 == 1) && (cell2 == 1) && (cell3 == 1) && (cell4 == 1)) {
+            try {
+              // Execute an UPDATE query to reset all cell state values to zero
+              const query = `UPDATE ${tableMoves + req.user.username} SET cell_state = 0`;
+              await client.query(query);
+              console.log(`Reset all cell state values to zero in table ${tableMoves + req.user.username}`);
+            } catch (error) {
+              console.error("Error resetting cell state values:", error);
+            }
                // If so, set the winner
                console.log("Red Wins");
                return res.json({ message: '/game?message=RED+Has+Won!!!'});
@@ -199,6 +106,14 @@ router.get('/', function(req, res, next) {
            }
  
            if ((cell1 == 2) && (cell2 == 2) && (cell3 == 2) && (cell4 == 2)) {
+            try {
+              // Execute an UPDATE query to reset all cell state values to zero
+              const query = `UPDATE ${tableMoves + req.user.username} SET cell_state = 0`;
+              await client.query(query);
+              console.log(`Reset all cell state values to zero in table ${tableMoves + req.user.username}`);
+            } catch (error) {
+              console.error("Error resetting cell state values:", error);
+            }
              // If so, set the winner
              console.log("Yellow Wins");
              return res.json({ message: '/game?message=YELLOW+Has+Won!!!'});
@@ -221,12 +136,28 @@ router.get('/', function(req, res, next) {
  
          // Check if all four cells exist and have the same class
          if ((cell1 == 1) && (cell2 == 1) && (cell3 == 1) && (cell4 == 1)) {
+          try {
+            // Execute an UPDATE query to reset all cell state values to zero
+            const query = `UPDATE ${tableMoves + req.user.username} SET cell_state = 0`;
+            await client.query(query);
+            console.log(`Reset all cell state values to zero in table ${tableMoves + req.user.username}`);
+          } catch (error) {
+            console.error("Error resetting cell state values:", error);
+          }
              // If so, set the winner
              console.log("Red Wins");
              return res.json({ message: '/game?message=RED+Has+Won!!!'});
          }
  
          if ((cell1 == 2) && (cell2 == 2) && (cell3 == 2) && (cell4 == 2)) {
+          try {
+            // Execute an UPDATE query to reset all cell state values to zero
+            const query = `UPDATE ${tableMoves + req.user.username} SET cell_state = 0`;
+            await client.query(query);
+            console.log(`Reset all cell state values to zero in table ${tableMoves + req.user.username}`);
+          } catch (error) {
+            console.error("Error resetting cell state values:", error);
+          }
            // If so, set the winner
            console.log("Yellow Wins");
            return res.json({ message: '/game?message=YELLOW+Has+Won!!!'});
@@ -246,6 +177,14 @@ router.get('/', function(req, res, next) {
  
        // Check if all four cells exist and have the same class
        if ((cell1 == 1) && (cell2 == 1) && (cell3 == 1) && (cell4 == 1)) {
+        try {
+          // Execute an UPDATE query to reset all cell state values to zero
+          const query = `UPDATE ${tableMoves + req.user.username} SET cell_state = 0`;
+          await client.query(query);
+          console.log(`Reset all cell state values to zero in table ${tableMoves + req.user.username}`);
+        } catch (error) {
+          console.error("Error resetting cell state values:", error);
+        }
          // If so, set the winner
          console.log("Red Wins");
          return res.json({ message: '/game?message=RED+Has+Won!!!'});
@@ -253,6 +192,14 @@ router.get('/', function(req, res, next) {
      }
  
      if ((cell1 == 2) && (cell2 == 2) && (cell3 == 2) && (cell4 == 2)) {
+      try {
+        // Execute an UPDATE query to reset all cell state values to zero
+        const query = `UPDATE ${tableMoves + req.user.username} SET cell_state = 0`;
+        await client.query(query);
+        console.log(`Reset all cell state values to zero in table ${tableMoves + req.user.username}`);
+      } catch (error) {
+        console.error("Error resetting cell state values:", error);
+      }
        // If so, set the winner
        console.log("Yellow Wins");
        return res.json({ message: '/game?message=YELLOW+Has+Won!!!'});
@@ -275,6 +222,14 @@ router.get('/', function(req, res, next) {
  
           // Check if all four cells exist and have the same class
           if ((cell1 == 1) && (cell2 == 1) && (cell3 == 1) && (cell4 == 1)) {
+            try {
+              // Execute an UPDATE query to reset all cell state values to zero
+              const query = `UPDATE ${tableMoves + req.user.username} SET cell_state = 0`;
+              await client.query(query);
+              console.log(`Reset all cell state values to zero in table ${tableMoves + req.user.username}`);
+            } catch (error) {
+              console.error("Error resetting cell state values:", error);
+            }
            // If so, set the winner
            console.log("Red Wins");
            return res.json({ message: '/game?message=RED+Has+Won!!!'});
@@ -282,6 +237,14 @@ router.get('/', function(req, res, next) {
        }
    
        if ((cell1 == 2) && (cell2 == 2) && (cell3 == 2) && (cell4 == 2)) {
+        try {
+          // Execute an UPDATE query to reset all cell state values to zero
+          const query = `UPDATE ${tableMoves + req.user.username} SET cell_state = 0`;
+          await client.query(query);
+          console.log(`Reset all cell state values to zero in table ${tableMoves + req.user.username}`);
+        } catch (error) {
+          console.error("Error resetting cell state values:", error);
+        }
          // If so, set the winner
          console.log("Yellow Wins");
          return res.json({ message: '/game?message=YELLOW+Has+Won!!!'});
@@ -293,9 +256,6 @@ router.get('/', function(req, res, next) {
  }
  
     res.json({ message: 'Received row and column data' });
-    saveGameBoardState(gameBoard,req);
-   });
- 
    });
  
    
