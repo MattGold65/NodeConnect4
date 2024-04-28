@@ -3,6 +3,7 @@ var router = express.Router();
 var path = require('path');
 var env = require('dotenv').config();
 var tableMoves = `connect4_game_state_`;
+var tableGravity = 'connect4_gravity_state_'
 
 
 const Client = require('pg').Client;
@@ -14,11 +15,87 @@ client.connect();
 var passport = require('passport');
 var bcrypt = require('bcryptjs');
 
-//This router.get needs to get cleaned up when we build login
-router.get('/', function(req, res, next) {
-    // Execute the SQL statement to create the table
-  res.sendFile(path.join(__dirname, '..', 'public', 'Connect4.html'));
- });
+router.get('/', async function(req, res, next) {
+  try {
+    let gameBoard = [];
+    for (let row = 0; row < 6; row++) {
+      gameBoard[row] = []; // Initialize inner array
+      for (let col = 0; col < 7; col++) {
+        try {
+          const result = await client.query(`SELECT cell_state FROM ${tableMoves + req.user.username} WHERE column_number = $1 AND row_number = $2`, [col, row]);
+          if (result.rows.length > 0) {
+            console.log(result.rows[0].cell_state); // Access the cell_state value from the result
+            gameBoard[row][col] = result.rows[0].cell_state;
+          } else {
+            // Handle case when no rows are returned
+            console.log(`No data found for row ${row}, column ${col}`);
+          }
+        } catch (err) {
+          console.log("Unable to query SELECT:", err);
+          // Handle the error if needed
+        }
+      }
+    }
+
+    let ColumnState = [];
+    for (let col = 0; col < 7; col++) {
+    try {
+      const result = await client.query(`SELECT row_height FROM ${tableGravity + req.user.username} WHERE column_number = $1`, [col]);
+      if (result.rows.length > 0) {
+        console.log(result.rows[0].row_height); // Access the cell_state value from the result
+        ColumnState[col] = result.rows[0].row_height;
+      } else {
+        // Handle case when no rows are returned
+        console.log(`No data found for gravity at column ${col}`);
+      }
+    } catch (err) {
+      console.log("Unable to query SELECT:", err);
+      // Handle the error if needed
+    }
+  }
+
+  let CurrentPlayer = 0;
+
+  try {
+    const result = await client.query(`
+    SELECT cell_state FROM ${tableMoves + req.user.username}
+    ORDER BY move_timestamp DESC
+    LIMIT 1
+  `);
+    if (result.rows.length > 0) {
+      console.log(result.rows[0].cell_state); // Access the cell_state value from the result
+      CurrentPlayer = result.rows[0].cell_state;
+    } else {
+      // Handle case when no rows are returned
+      console.log(`No data found for cell state`);
+    }
+  } catch (err) {
+    console.log("Unable to query Order cell_state:", err);
+    // Handle the error if needed
+  }
+
+    
+    // Send the game board data as JSON
+    console.log("current player....." + CurrentPlayer)
+    res.json({ gameBoard: gameBoard, ColumnState: ColumnState, CellState: CurrentPlayer});
+    
+  } catch (error) {
+    console.error('Error retrieving game state:', error);
+    // Handle the error appropriately
+    next(error);
+  }
+});
+
+router.get('/connect4', async function(req, res, next) {
+  try {
+    // Send the HTML file
+    res.sendFile(path.join(__dirname, '..', 'public', 'Connect4.html'));
+  } catch (error) {
+    console.error('Error sending HTML file:', error);
+    // Handle the error appropriately
+    next(error);
+  }
+});
  
  // GET users listing. 
  // init new table
@@ -31,11 +108,12 @@ router.get('/', function(req, res, next) {
  // checks for winner --> if winner post winner
  router.post('/', async function(req, res, next){
    
-  let gameBoard = []; // Define gameboard outside the loop
+  let gameBoard = [];
+  let columnState = []; // Define gameboard outside the loop
   let cellstate = 0;
 
   // Extract data from the request body
-  const { row, column, player } = req.body;
+  const { row, column, player, gravity } = req.body;
 
   if (player == "Red"){
     cellstate = 1;
@@ -53,8 +131,15 @@ router.get('/', function(req, res, next) {
     }
     });
 
+    //insert move into gameboard
+  await client.query(`UPDATE ${tableGravity + req.user.username} SET row_height = $1 WHERE column_number = $2`, [gravity, column], (err, result) => {
+    if (err) {
+      console.log("unable to query UPDATE gravity");
+      next(err);
+      return; // Exit callback if error
+    }
+    });
 
-  //get latest gameboard
   //get latest gameboard
 for (let row = 0; row < 6; row++) {
   gameBoard[row] = []; // Initialize inner array
@@ -76,7 +161,7 @@ for (let row = 0; row < 6; row++) {
 }
 
 
-  console.log(gameBoard);
+  console.log()
  
      //Condition 1 - Horizontally
      console.log("Checking for winner...");
@@ -99,6 +184,15 @@ for (let row = 0; row < 6; row++) {
             } catch (error) {
               console.error("Error resetting cell state values:", error);
             }
+
+            try {
+              // Execute an UPDATE query to reset all cell state values to zero
+              const query = `UPDATE ${tableGravity + req.user.username} SET row_height = 5`;
+              await client.query(query);
+              console.log(`Reset all cell state values to zero in table ${tableMoves + req.user.username}`);
+            } catch (error) {
+              console.error("Error resetting cell state values:", error);
+            }
                // If so, set the winner
                console.log("Red Wins");
                return res.json({ message: '/game?message=RED+Has+Won!!!'});
@@ -109,6 +203,15 @@ for (let row = 0; row < 6; row++) {
             try {
               // Execute an UPDATE query to reset all cell state values to zero
               const query = `UPDATE ${tableMoves + req.user.username} SET cell_state = 0`;
+              await client.query(query);
+              console.log(`Reset all cell state values to zero in table ${tableMoves + req.user.username}`);
+            } catch (error) {
+              console.error("Error resetting cell state values:", error);
+            }
+
+            try {
+              // Execute an UPDATE query to reset all cell state values to zero
+              const query = `UPDATE ${tableGravity + req.user.username} SET row_height = 5`;
               await client.query(query);
               console.log(`Reset all cell state values to zero in table ${tableMoves + req.user.username}`);
             } catch (error) {
@@ -144,6 +247,16 @@ for (let row = 0; row < 6; row++) {
           } catch (error) {
             console.error("Error resetting cell state values:", error);
           }
+
+          try {
+            // Execute an UPDATE query to reset all cell state values to zero
+            const query = `UPDATE ${tableGravity + req.user.username} SET row_height = 5`;
+            await client.query(query);
+            console.log(`Reset all cell state values to zero in table ${tableMoves + req.user.username}`);
+          } catch (error) {
+            console.error("Error resetting cell state values:", error);
+          }
+
              // If so, set the winner
              console.log("Red Wins");
              return res.json({ message: '/game?message=RED+Has+Won!!!'});
@@ -158,6 +271,16 @@ for (let row = 0; row < 6; row++) {
           } catch (error) {
             console.error("Error resetting cell state values:", error);
           }
+
+          try {
+            // Execute an UPDATE query to reset all cell state values to zero
+            const query = `UPDATE ${tableGravity + req.user.username} SET row_height = 5`;
+            await client.query(query);
+            console.log(`Reset all cell state values to zero in table ${tableMoves + req.user.username}`);
+          } catch (error) {
+            console.error("Error resetting cell state values:", error);
+          }
+
            // If so, set the winner
            console.log("Yellow Wins");
            return res.json({ message: '/game?message=YELLOW+Has+Won!!!'});
@@ -185,6 +308,16 @@ for (let row = 0; row < 6; row++) {
         } catch (error) {
           console.error("Error resetting cell state values:", error);
         }
+
+        try {
+          // Execute an UPDATE query to reset all cell state values to zero
+          const query = `UPDATE ${tableGravity + req.user.username} SET row_height = 5`;
+          await client.query(query);
+          console.log(`Reset all cell state values to zero in table ${tableMoves + req.user.username}`);
+        } catch (error) {
+          console.error("Error resetting cell state values:", error);
+        }
+
          // If so, set the winner
          console.log("Red Wins");
          return res.json({ message: '/game?message=RED+Has+Won!!!'});
@@ -200,6 +333,16 @@ for (let row = 0; row < 6; row++) {
       } catch (error) {
         console.error("Error resetting cell state values:", error);
       }
+
+      try {
+        // Execute an UPDATE query to reset all cell state values to zero
+        const query = `UPDATE ${tableGravity + req.user.username} SET row_height = 5`;
+        await client.query(query);
+        console.log(`Reset all cell state values to zero in table ${tableMoves + req.user.username}`);
+      } catch (error) {
+        console.error("Error resetting cell state values:", error);
+      }
+
        // If so, set the winner
        console.log("Yellow Wins");
        return res.json({ message: '/game?message=YELLOW+Has+Won!!!'});
@@ -230,6 +373,16 @@ for (let row = 0; row < 6; row++) {
             } catch (error) {
               console.error("Error resetting cell state values:", error);
             }
+
+            try {
+              // Execute an UPDATE query to reset all cell state values to zero
+              const query = `UPDATE ${tableGravity + req.user.username} SET row_height = 5`;
+              await client.query(query);
+              console.log(`Reset all cell state values to zero in table ${tableMoves + req.user.username}`);
+            } catch (error) {
+              console.error("Error resetting cell state values:", error);
+            }
+
            // If so, set the winner
            console.log("Red Wins");
            return res.json({ message: '/game?message=RED+Has+Won!!!'});
@@ -245,6 +398,16 @@ for (let row = 0; row < 6; row++) {
         } catch (error) {
           console.error("Error resetting cell state values:", error);
         }
+
+        try {
+          // Execute an UPDATE query to reset all cell state values to zero
+          const query = `UPDATE ${tableGravity + req.user.username} SET row_height = 5`;
+          await client.query(query);
+          console.log(`Reset all cell state values to zero in table ${tableMoves + req.user.username}`);
+        } catch (error) {
+          console.error("Error resetting cell state values:", error);
+        }
+
          // If so, set the winner
          console.log("Yellow Wins");
          return res.json({ message: '/game?message=YELLOW+Has+Won!!!'});

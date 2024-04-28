@@ -4,7 +4,7 @@ var CurrentPlayer = RedPlayer;
 
 var gameOver = false;
 var board;
-var ColumnState;
+var ColumnState = [5,5,5,5,5,5,5];
 
 var rows = 6;
 var columns = 7;
@@ -12,8 +12,6 @@ var columns = 7;
 function createCells() {
     //select board from html and assign to board var
     board = document.querySelector('.board');
-    //implements gravity
-    ColumnState = [5,5,5,5,5,5,5];
     //for each cell on the board
     for (let i = 0; i < 42; i++) {
         const cell = document.createElement('div');
@@ -34,11 +32,6 @@ function createCells() {
 
 // In connect4.js
 
-// Function to save the game state to localStorage
-function saveGameState() {
-    localStorage.setItem('connect4GameState', JSON.stringify(gameBoard));
-}
-
 // Function to load the game state from localStorage
 function loadGameState() {
     const savedGameState = localStorage.getItem('connect4GameState');
@@ -47,6 +40,61 @@ function loadGameState() {
         // Code to update the game board UI based on the loaded game state
         // For example, update the cell classes based on the values in gameBoard
     }
+}
+
+// Function to fetch the game board data from the backend
+function fetchGameBoardData() {
+    fetch('/game') // Replace 'your-backend-endpoint' with the actual endpoint
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.json();
+      })
+      .then(data => {
+        // Since response.json() already returns parsed JSON, no need to parse again
+        updateGameBoardUI(data.gameBoard); // Update the game board UI with the received data
+        updateGravity(data.ColumnState);
+        updatePlayer(data.CellState);
+      })
+      .catch(error => {
+        console.error('There was a problem with fetching game board data:', error);
+      });
+  }
+  
+  // Function to update the game board UI based on the loaded game state
+  function updateGameBoardUI(gameBoard) {
+    // Loop through the game board data and update the UI
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < columns; col++) {
+        const selector = `.cell[data-row="${row}"][data-column="${col}"]`;
+        const cellDiv = document.querySelector(selector);
+        const cellState = gameBoard[row][col];
+        // Update the cell class based on the cell state
+        if (cellState === 1) {
+          cellDiv.classList.add("red-piece");
+        } else if (cellState === 2) {
+          cellDiv.classList.add("yellow-piece");
+        }
+      }
+    }
+  }
+
+  function updateGravity(gravState){
+    for (let col = 0; col < columns; col++) {
+        ColumnState[col] = gravState[col];
+  }
+}
+
+function updatePlayer(CellState){
+
+     // Check the current player and assign the appropriate class
+     if ((CellState === 0) || (CellState === 2)) {
+        CurrentPlayer = RedPlayer;
+    } else if (CellState === 1) {
+        CurrentPlayer = YellowPlayer;
+    }
+   
 }
 
 
@@ -66,8 +114,8 @@ function setPiece(event) {
     const selector = `.cell[data-row="${row}"][data-column="${column}"]`;
     const cellDiv = document.querySelector(selector);
 
-    // Update the row height in the column and update the ColumnState array
-    ColumnState[column]--;
+    //same as row remove in future
+    const gravityState = --ColumnState[column];
 
      // Send row and column data to the server
      fetch('/game', {
@@ -75,7 +123,7 @@ function setPiece(event) {
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ row: row, column: column, player: CurrentPlayer})
+        body: JSON.stringify({ row: row, column: column, player: CurrentPlayer, gravity: gravityState})
     })
     .then(response => {
         if (!response.ok) {
@@ -107,10 +155,10 @@ function setPiece(event) {
         CurrentPlayer = RedPlayer; // Switch to the next player
     }
 
-    saveGameState();
 }
 
 window.onload = function() {
     createCells();
     loadGameState();
+    fetchGameBoardData();
 };

@@ -26,6 +26,18 @@ async function insertValues(id, rowNumber, columnNumber, cellState, tablename) {
   }
 }
 
+//for gravity
+async function insertValues2(col, height, tablename) {
+  try {
+      // Assuming you have a table named 'game_table'
+      const query = `INSERT INTO ${tablename} (column_number, row_height) VALUES ($1, $2)`;
+      await client.query(query, [col, height]);
+      console.log(`Inserted values for column ${col}`);
+  } catch (error) {
+      console.error("Error inserting gravity values:", error);
+  }
+}
+
 router.get('/logout', function(req, res, next){
   req.logout(function(err) {
     if (err) {
@@ -99,7 +111,6 @@ function createUser(req, res, next){
 
   // Define the name of the table to store game board state
 const tableGameboard = 'connect4_game_state_'+ req.body.username;
-
 // Create the table if it doesn't exist
   // creates user gameboard table
   const createTableGameboardQuery = `
@@ -107,7 +118,8 @@ CREATE TABLE IF NOT EXISTS ${tableGameboard} (
     id SERIAL PRIMARY KEY,
     row_number INT NOT NULL,
     column_number INT NOT NULL,
-    cell_state INT NOT NULL
+    cell_state INT NOT NULL,
+    move_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )
 `;
 client.query(createTableGameboardQuery)
@@ -126,22 +138,24 @@ for (let row = 0; row < 6; row++) {
   }
 }
 
-  var tableMoves = `connect4_moves_` + req.body.username;
+const tableGravity = 'connect4_gravity_state_'+ req.body.username;
 
-  const createTableMovesQuery = `
-  CREATE TABLE IF NOT EXISTS ${tableMoves} (
-      id SERIAL PRIMARY KEY,
-      player VARCHAR(10) NOT NULL,
-      column_number INT NOT NULL,
-      row_number INT NOT NULL,
-      move_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  const createTableGravityQuery = `
+  CREATE TABLE IF NOT EXISTS ${tableGravity} (
+    column_number INT PRIMARY KEY,
+    row_height INT NOT NULL
   )
 `;
-client.query(createTableMovesQuery)
-.then(result => console.log('User table created successfully'))
-.catch(error => console.error('Error creating moves table:', error));
+client.query(createTableGravityQuery)
+.then(result => console.log('Gravity table created successfully'))
+.catch(error => console.error('Error creating gravity table:', error));
+
+for (let col = 0; col < 7; col++) {
+  // Insert values into the grav table
+  insertValues2(col, 5, tableGravity);
 }
 
+}
 router.post('/signup', function(req, res, next) {
   client.query('SELECT * FROM Connect4users WHERE username=$1',[req.body.username], function(err,result){
     if (err) {
