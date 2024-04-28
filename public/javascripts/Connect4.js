@@ -1,6 +1,6 @@
 var RedPlayer = "Red";
 var YellowPlayer = "Yellow";
-var CurrentPlayer = RedPlayer;
+var CurrentPlayer;
 
 var gameOver = false;
 var board;
@@ -34,12 +34,12 @@ function createCells() {
 
 // Function to load the game state from localStorage
 function loadGameState() {
-    const savedGameState = localStorage.getItem('connect4GameState');
-    if (savedGameState) {
-        gameBoard = JSON.parse(savedGameState);
-        // Code to update the game board UI based on the loaded game state
-        // For example, update the cell classes based on the values in gameBoard
-    }
+  // Retrieve the current player from local storage
+  CurrentPlayer = localStorage.getItem('CurrentPlayer');
+  // If the current player is not stored in local storage, default to RedPlayer
+  if (!CurrentPlayer) {
+      CurrentPlayer = RedPlayer;
+  }
 }
 
 // Function to fetch the game board data from the backend
@@ -89,7 +89,7 @@ function fetchGameBoardData() {
 function updatePlayer(CellState){
 
      // Check the current player and assign the appropriate class
-     if ((CellState === 0) || (CellState === 2)) {
+     if (CellState === 2 || CellState === 0) {
         CurrentPlayer = RedPlayer;
     } else if (CellState === 1) {
         CurrentPlayer = YellowPlayer;
@@ -116,6 +116,8 @@ function setPiece(event) {
 
     //same as row remove in future
     const gravityState = --ColumnState[column];
+
+    
 
      // Send row and column data to the server
      fetch('/game', {

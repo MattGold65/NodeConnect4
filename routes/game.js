@@ -24,7 +24,6 @@ router.get('/', async function(req, res, next) {
         try {
           const result = await client.query(`SELECT cell_state FROM ${tableMoves + req.user.username} WHERE column_number = $1 AND row_number = $2`, [col, row]);
           if (result.rows.length > 0) {
-            console.log(result.rows[0].cell_state); // Access the cell_state value from the result
             gameBoard[row][col] = result.rows[0].cell_state;
           } else {
             // Handle case when no rows are returned
@@ -42,7 +41,6 @@ router.get('/', async function(req, res, next) {
     try {
       const result = await client.query(`SELECT row_height FROM ${tableGravity + req.user.username} WHERE column_number = $1`, [col]);
       if (result.rows.length > 0) {
-        console.log(result.rows[0].row_height); // Access the cell_state value from the result
         ColumnState[col] = result.rows[0].row_height;
       } else {
         // Handle case when no rows are returned
@@ -63,8 +61,8 @@ router.get('/', async function(req, res, next) {
     LIMIT 1
   `);
     if (result.rows.length > 0) {
-      console.log(result.rows[0].cell_state); // Access the cell_state value from the result
       CurrentPlayer = result.rows[0].cell_state;
+      console.log(CurrentPlayer);
     } else {
       // Handle case when no rows are returned
       console.log(`No data found for cell state`);
@@ -76,7 +74,6 @@ router.get('/', async function(req, res, next) {
 
     
     // Send the game board data as JSON
-    console.log("current player....." + CurrentPlayer)
     res.json({ gameBoard: gameBoard, ColumnState: ColumnState, CellState: CurrentPlayer});
     
   } catch (error) {
@@ -123,7 +120,8 @@ router.get('/connect4', async function(req, res, next) {
 
 
   //insert move into gameboard
-  await client.query(`UPDATE ${tableMoves + req.user.username} SET cell_state = $1 WHERE column_number = $2 AND row_number = $3`, [cellstate, column, row], (err, result) => {
+  console.log(cellstate);
+  await client.query(`UPDATE ${tableMoves + req.user.username} SET cell_state = $1, move_timestamp = CURRENT_TIMESTAMP WHERE column_number = $2 AND row_number = $3`, [cellstate, column, row], (err, result) => {
     if (err) {
       console.log("unable to query UPDATE");
       next(err);
@@ -147,7 +145,6 @@ for (let row = 0; row < 6; row++) {
     try {
       const result = await client.query(`SELECT cell_state FROM ${tableMoves + req.user.username} WHERE column_number = $1 AND row_number = $2`, [col, row]);
       if (result.rows.length > 0) {
-        console.log(result.rows[0].cell_state); // Access the cell_state value from the result
         gameBoard[row][col] = result.rows[0].cell_state;
       } else {
         // Handle case when no rows are returned
@@ -159,10 +156,6 @@ for (let row = 0; row < 6; row++) {
     }
   }
 }
-
-
-  console.log()
- 
      //Condition 1 - Horizontally
      console.log("Checking for winner...");
      for (let i = 0; i < 6; i++) {
