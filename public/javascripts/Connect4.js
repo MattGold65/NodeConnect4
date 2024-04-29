@@ -22,11 +22,10 @@ function createCells() {
         // Divide By 7 to reset count for each new row
         cell.setAttribute('data-row', Math.floor(i / 7));
 
-        cell.addEventListener("click", setPiece);
         // add board to html
         board.appendChild(cell);
-
         cell.addEventListener("click", setPiece);
+        
     }
 }
 
@@ -123,8 +122,7 @@ function setGameBoardData(row, column, gravityState){
                     window.location.href = "/game/connect4";
                 });
                 document.getElementById('message').appendChild(playAgainButton);
-
-      
+                gameOver = true;
     } else {
         // Log any other data received
         console.log(data);
@@ -135,48 +133,86 @@ function setGameBoardData(row, column, gravityState){
 });
 }
 
+function placeYellowPiece() {
+  if (gameOver) {
+    return;
+}
+  // Yellow's turn
+  let availableColumns = [];
+  for (let col = 0; col < columns; col++) {
+      if (ColumnState[col] >= 0) {
+          availableColumns.push(col);
+      }
+  }
+
+  // Choose a random column from available columns
+  const randomColumnIndex = Math.floor(Math.random() * availableColumns.length);
+  const randomColumn = availableColumns[randomColumnIndex];
+
+  // Find the corresponding row for the chosen column
+  const row = ColumnState[randomColumn];
+
+  // Select the cell to place the piece
+  const selector = `.cell[data-row="${row}"][data-column="${randomColumn}"]`;
+  const cellDiv = document.querySelector(selector);
+
+  // Update the ColumnState and set the gravityState
+  const gravityState = --ColumnState[randomColumn];
+
+  // Send row and column data to the server
+  setGameBoardData(row, randomColumn, gravityState);
+
+  // Assign the appropriate class to the cell
+  cellDiv.classList.add("yellow-piece");
+
+  // Switch to the next player
+  CurrentPlayer = RedPlayer;
+}
+
 
 function setPiece(event) {
-    if (gameOver) {
-        return;
-    }
-    const target = event.target;
-    const column = parseInt(target.getAttribute('data-column'));
-    let row = ColumnState[column]; // Retrieve the current row from ColumnState
+  if (gameOver) {
+      return;
+  }
 
-    if (column < 0 || row < 0) {
-        return;
-    }
+  // Check if it's the current player's turn
+  if (CurrentPlayer === RedPlayer) {
+      const target = event.target;
+      const column = parseInt(target.getAttribute('data-column'));
+      let row = ColumnState[column]; // Retrieve the current row from ColumnState
 
-    // Select the cell to place the piece
-    const selector = `.cell[data-row="${row}"][data-column="${column}"]`;
-    const cellDiv = document.querySelector(selector);
+      if (column < 0 || row < 0) {
+          return;
+      }
 
-    //same as row remove in future
-    const gravityState = --ColumnState[column];
+      // Select the cell to place the piece
+      const selector = `.cell[data-row="${row}"][data-column="${column}"]`;
+      const cellDiv = document.querySelector(selector);
 
-    // Send row and column data to the server
-    setGameBoardData(row,column,gravityState);
+      // Update the ColumnState and set the gravityState
+      const gravityState = --ColumnState[column];
 
-     // Check the current player and assign the appropriate class
-     if (CurrentPlayer === RedPlayer) {
-        cellDiv.classList.add("red-piece");
-        CurrentPlayer = YellowPlayer; // Switch to the next player
-    } else if (CurrentPlayer === YellowPlayer) {
-        cellDiv.classList.add("yellow-piece");
-        CurrentPlayer = RedPlayer; // Switch to the next player
-    }
+      // Send row and column data to the server
+      setGameBoardData(row, column, gravityState);
+
+      // Check the current player and assign the appropriate class
+      cellDiv.classList.add("red-piece");
+      CurrentPlayer = YellowPlayer; // Switch to the next player
+
+      // Trigger Yellow's move after a delay
+      setTimeout(placeYellowPiece, 250); // Adjust delay as needed
+  }
 }
 
 window.onload = function() {
+  // Add event listener to the always visible return home button
+  const alwaysReturnHomeButton = document.getElementById('alwaysReturnHomeButton');
+  alwaysReturnHomeButton.addEventListener("click", () => {
+      // Redirect to return home
+      window.location.href = "/users/login";
+  });
     createCells();
     getGameState();
     getGameBoardData();
 
-    // Add event listener to the always visible return home button
-    const alwaysReturnHomeButton = document.getElementById('alwaysReturnHomeButton');
-    alwaysReturnHomeButton.addEventListener("click", () => {
-        // Redirect to return home
-        window.location.href = "/users/login";
-    });
 };
