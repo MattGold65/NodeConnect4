@@ -96,6 +96,7 @@ app.use(express.static(path.join(__dirname, 'public'), {
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use('/game', Connect4Router);
+app.use('/game/connect4', Connect4Router);
 // Serve static files from the 'public' directory
 app.use('/game', express.static(path.join(__dirname, 'public')));
 

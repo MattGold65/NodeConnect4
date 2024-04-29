@@ -52,10 +52,15 @@ function fetchGameBoardData() {
         return response.json();
       })
       .then(data => {
-        // Since response.json() already returns parsed JSON, no need to parse again
-        updateGameBoardUI(data.gameBoard); // Update the game board UI with the received data
-        updateGravity(data.ColumnState);
-        updatePlayer(data.CellState);
+        if (data.win) {
+          // Redirect to the Connect4 page with the winner message
+          window.location.href = '/game?message=' + encodeURIComponent(data.message);
+      } else {
+          // Process the game board data as usual
+          updateGameBoardUI(data.gameBoard);
+          updateGravity(data.ColumnState);
+          updatePlayer(data.CellState);
+      }
       })
       .catch(error => {
         console.error('There was a problem with fetching game board data:', error);
@@ -134,11 +139,13 @@ function setPiece(event) {
         return response.json();
     })
     .then(data => {
-        if (data.message.startsWith('/game?message=')) {
-            // Extract the message from the data
-            const message = decodeURIComponent(data.message.substring('/game?message='.length));
-            // Redirect to the Connect4 page with the winner message
-            window.location.href = data.message;
+        if (data.win) {
+          const message = data.message; // Extract the message from the data
+          const winMessageElement = document.createElement('div');
+          winMessageElement.textContent = message;
+         // Add the win message to a specific element in your HTML
+          document.getElementById('message').appendChild(winMessageElement);
+            
         } else {
             // Log any other data received
             console.log(data);
