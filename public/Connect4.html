@@ -1,21 +1,26 @@
 <html>
 <head>
-<link rel="stylesheet" href="/game/stylesheets/Connect4.css">
-<title>Connect 4 Board</title>
+    <link rel="stylesheet" href="/game/stylesheets/Connect4.css">
+    <title>Connect 4 Board</title>
 </head>
 <body>
-<div id="message"></div>
+    <div id="message"></div>
 
-<div class="board"></div>
+    <div class="board"></div>
 
-<script>
-    const urlParams = new URLSearchParams(window.location.search);
-    const name = urlParams.get('message');
-    if (name) {
-      document.getElementById('message').innerHTML = name;
-    }
-</script>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const name = urlParams.get('message');
+        if (name) {
+            document.getElementById('message').innerHTML = name;
+        }
+    </script>
 
-<script src="/game/javascripts/Connect4.js"></script>
+    <script src="/game/javascripts/Connect4.js"></script>
+
+    <!-- Always visible return home button -->
+    <div id="returnHomeContainer">
+        <button id="alwaysReturnHomeButton">Return Home</button>
+    </div>
 </body>
 </html>

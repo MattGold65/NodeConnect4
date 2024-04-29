@@ -109,12 +109,22 @@ function setGameBoardData(row, column, gravityState){
 })
 .then(data => {
     if (data.win) {
-      const message = data.message; // Extract the message from the data
-      const winMessageElement = document.createElement('div');
-      winMessageElement.textContent = message;
-     // Add the win message to a specific element in your HTML
-      document.getElementById('message').appendChild(winMessageElement);
-        
+                const message = data.message;
+                const winMessageElement = document.createElement('div');
+                winMessageElement.textContent = message;
+                // Add the win message to a specific element in your HTML
+                document.getElementById('message').appendChild(winMessageElement);
+
+                // Display buttons for playing again and returning home
+                const playAgainButton = document.createElement('button');
+                playAgainButton.textContent = "Play Again";
+                playAgainButton.addEventListener("click", () => {
+                    // Redirect to play again
+                    window.location.href = "/game/connect4";
+                });
+                document.getElementById('message').appendChild(playAgainButton);
+
+      
     } else {
         // Log any other data received
         console.log(data);
@@ -162,4 +172,11 @@ window.onload = function() {
     createCells();
     getGameState();
     getGameBoardData();
+
+    // Add event listener to the always visible return home button
+    const alwaysReturnHomeButton = document.getElementById('alwaysReturnHomeButton');
+    alwaysReturnHomeButton.addEventListener("click", () => {
+        // Redirect to return home
+        window.location.href = "/users/login";
+    });
 };

@@ -15,11 +15,16 @@
   <h2>Welcome to your profile!</h2>
   <h3>Feel free to make this page user friendly.</h3>
   <br>
+  <button onclick="navigateToConnect4()">Play Connect4</button>
   <script>
     const urlParams = new URLSearchParams(window.location.search);
     const name = urlParams.get('name');
     if (name) {
       document.getElementById('name').innerHTML = name;
+    }
+
+    function navigateToConnect4() {
+      window.location.href = '/game/Connect4';
     }
   </script>
 </body>

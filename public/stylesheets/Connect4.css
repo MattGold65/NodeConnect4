@@ -5,6 +5,7 @@ body {
     align-items: center;
     height: 100vh;
     margin: 0;
+    position: relative;
 }
 
 .board {
@@ -38,7 +39,6 @@ body {
     background-color: yellow;
 }
 
-
 #message {
     position: fixed;
     top: 20px;
@@ -47,4 +47,41 @@ body {
     font-size: 24px;
     font-weight: bold;
     text-align: center;
+}
+
+/* Styling for buttons */
+button {
+    padding: 10px 20px;
+    background-color: #4CAF50; /* Green */
+    border: none;
+    color: white;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    margin: 4px 2px;
+    transition-duration: 0.4s;
+    cursor: pointer;
+    border-radius: 8px;
+}
+
+button:hover {
+    background-color: #45a049;
+}
+
+/* Styling for the always visible Return Home button */
+#alwaysReturnHomeButton {
+    background-color: #f44336; /* Red */
+}
+
+#alwaysReturnHomeButton:hover {
+    background-color: #d32f2f; /* Darker red on hover */
+}
+
+/* Styling for the always visible Return Home button container */
+#returnHomeContainer {
+    position: absolute;
+    bottom: 50px; /* Adjust the distance from the bottom */
+    left: 50%;
+    transform: translateX(-50%);
 }
