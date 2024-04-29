@@ -2,7 +2,7 @@ var express = require('express');
 var router = express.Router();
 var path = require('path');
 var env = require('dotenv').config();
-var tableMoves = `connect4_game_state_`;
+var tableMoves = 'connect4_game_state_';
 var tableGravity = 'connect4_gravity_state_'
 
 const Client = require('pg').Client;
@@ -23,7 +23,6 @@ async function setCellValues(req){
   } catch (error) {
     console.error("Error resetting cell state values:", error);
   }
-
 }
 
 async function setGravityValues(req){

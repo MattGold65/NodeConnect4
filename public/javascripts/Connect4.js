@@ -30,10 +30,8 @@ function createCells() {
     }
 }
 
-// In connect4.js
-
 // Function to load the game state from localStorage
-function loadGameState() {
+function getGameState() {
   // Retrieve the current player from local storage
   CurrentPlayer = localStorage.getItem('CurrentPlayer');
   // If the current player is not stored in local storage, default to RedPlayer
@@ -43,7 +41,7 @@ function loadGameState() {
 }
 
 // Function to fetch the game board data from the backend
-function fetchGameBoardData() {
+function getGameBoardData() {
     fetch('/game') // Replace 'your-backend-endpoint' with the actual endpoint
       .then(response => {
         if (!response.ok) {
@@ -52,15 +50,10 @@ function fetchGameBoardData() {
         return response.json();
       })
       .then(data => {
-        if (data.win) {
-          // Redirect to the Connect4 page with the winner message
-          window.location.href = '/game?message=' + encodeURIComponent(data.message);
-      } else {
           // Process the game board data as usual
-          updateGameBoardUI(data.gameBoard);
-          updateGravity(data.ColumnState);
-          updatePlayer(data.CellState);
-      }
+          setGameBoardUI(data.gameBoard);
+          setGravity(data.ColumnState);
+          setPlayer(data.CellState);
       })
       .catch(error => {
         console.error('There was a problem with fetching game board data:', error);
@@ -68,7 +61,7 @@ function fetchGameBoardData() {
   }
   
   // Function to update the game board UI based on the loaded game state
-  function updateGameBoardUI(gameBoard) {
+  function setGameBoardUI(gameBoard) {
     // Loop through the game board data and update the UI
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < columns; col++) {
@@ -85,21 +78,51 @@ function fetchGameBoardData() {
     }
   }
 
-  function updateGravity(gravState){
+  function setGravity(gravState){
     for (let col = 0; col < columns; col++) {
         ColumnState[col] = gravState[col];
   }
 }
 
-function updatePlayer(CellState){
-
-     // Check the current player and assign the appropriate class
+function setPlayer(CellState){
      if (CellState === 2 || CellState === 0) {
         CurrentPlayer = RedPlayer;
     } else if (CellState === 1) {
         CurrentPlayer = YellowPlayer;
     }
-   
+}
+
+function setGameBoardData(row, column, gravityState){
+  // Send row and column data to the server
+  fetch('/game', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ row: row, column: column, player: CurrentPlayer, gravity: gravityState})
+})
+.then(response => {
+    if (!response.ok) {
+        throw new Error('Network response was not ok');
+    }
+    return response.json();
+})
+.then(data => {
+    if (data.win) {
+      const message = data.message; // Extract the message from the data
+      const winMessageElement = document.createElement('div');
+      winMessageElement.textContent = message;
+     // Add the win message to a specific element in your HTML
+      document.getElementById('message').appendChild(winMessageElement);
+        
+    } else {
+        // Log any other data received
+        console.log(data);
+    }
+})
+.catch(error => {
+    console.error('There was a problem with your fetch operation:', error);
+});
 }
 
 
@@ -122,38 +145,8 @@ function setPiece(event) {
     //same as row remove in future
     const gravityState = --ColumnState[column];
 
-    
-
-     // Send row and column data to the server
-     fetch('/game', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ row: row, column: column, player: CurrentPlayer, gravity: gravityState})
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.win) {
-          const message = data.message; // Extract the message from the data
-          const winMessageElement = document.createElement('div');
-          winMessageElement.textContent = message;
-         // Add the win message to a specific element in your HTML
-          document.getElementById('message').appendChild(winMessageElement);
-            
-        } else {
-            // Log any other data received
-            console.log(data);
-        }
-    })
-    .catch(error => {
-        console.error('There was a problem with your fetch operation:', error);
-    });
+    // Send row and column data to the server
+    setGameBoardData(row,column,gravityState);
 
      // Check the current player and assign the appropriate class
      if (CurrentPlayer === RedPlayer) {
@@ -163,11 +156,10 @@ function setPiece(event) {
         cellDiv.classList.add("yellow-piece");
         CurrentPlayer = RedPlayer; // Switch to the next player
     }
-
 }
 
 window.onload = function() {
     createCells();
-    loadGameState();
-    fetchGameBoardData();
+    getGameState();
+    getGameBoardData();
 };
