@@ -1,10 +1,10 @@
 var RedPlayer = "Red";
 var YellowPlayer = "Yellow";
 var CurrentPlayer;
-
 var gameOver = false;
 var board;
 var ColumnState = [5,5,5,5,5,5,5];
+var BestMove;
 
 var rows = 6;
 var columns = 7;
@@ -124,30 +124,24 @@ function setGameBoardData(row, column, gravityState){
                 document.getElementById('message').appendChild(playAgainButton);
                 gameOver = true;
     } else {
-        // Log any other data received
+        // server will send best move
         console.log(data);
+        BestMove = data;
     }
 })
 .catch(error => {
     console.error('There was a problem with your fetch operation:', error);
 });
 }
-
+//AI impmenetation
 function placeYellowPiece() {
   if (gameOver) {
     return;
 }
-  // Yellow's turn
-  let availableColumns = [];
-  for (let col = 0; col < columns; col++) {
-      if (ColumnState[col] >= 0) {
-          availableColumns.push(col);
-      }
-  }
 
   // Choose a random column from available columns
-  const randomColumnIndex = Math.floor(Math.random() * availableColumns.length);
-  const randomColumn = availableColumns[randomColumnIndex];
+  //const randomColumnIndex = Math.floor(Math.random() * availableColumns.length);
+  const randomColumn = BestMove;
 
   // Find the corresponding row for the chosen column
   const row = ColumnState[randomColumn];

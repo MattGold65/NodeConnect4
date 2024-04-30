@@ -114,6 +114,156 @@ async function getCurrentPlayer(req){
   }
 }
 
+function evaluateWindow(window, piece, empty) {
+  const PLAYER_PIECE = piece;
+  const AI_PIECE = (piece === PLAYER_PIECE) ? 'AI' : 'PLAYER';
+  const EMPTY = empty;
+
+  let score = 0;
+  let oppPiece = (piece === PLAYER_PIECE) ? AI_PIECE : PLAYER_PIECE;
+
+  if (window.filter(item => item === piece).length === 4) {
+      score += 100;
+  } else if (window.filter(item => item === piece).length === 3 && window.filter(item => item === EMPTY).length === 1) {
+      score += 5;
+  } else if (window.filter(item => item === piece).length === 2 && window.filter(item => item === EMPTY).length === 2) {
+      score += 2;
+  }
+
+  if (window.filter(item => item === oppPiece).length === 3 && window.filter(item => item === EMPTY).length === 1) {
+      score -= 4;
+  }
+
+  return score;
+}
+
+function scorePosition(board, piece) {
+    let score = 0;
+    const ROW_COUNT = board.length;
+    const COLUMN_COUNT = board[0].length;
+    const WINDOW_LENGTH = 4;
+
+    // Score center column
+    let centerArray = board.map(row => row[Math.floor(COLUMN_COUNT / 2)]);
+    let centerCount = centerArray.filter(i => i === piece).length;
+    score += centerCount * 3;
+  
+    // Score Horizontal
+    for (let r = 0; r < ROW_COUNT; r++) {
+      let rowArray = [];
+      for (let i = 0; i < COLUMN_COUNT; i++) {
+          rowArray.push(parseInt(board[r][i]));
+      }
+      for (let c = 0; c < COLUMN_COUNT - 3; c++) {
+          let window = rowArray.slice(c, c + WINDOW_LENGTH);
+          score += evaluateWindow(window, piece);
+      }
+  }
+  
+    // Score Vertical
+for (let c = 0; c < COLUMN_COUNT; c++) {
+  let colArray = [];
+  for (let i = 0; i < board.length; i++) {
+      colArray.push(parseInt(board[i][c]));
+  }
+  for (let r = 0; r < ROW_COUNT - 3; r++) {
+      let window = colArray.slice(r, r + WINDOW_LENGTH);
+      score += evaluateWindow(window, piece);
+  }
+}
+
+// Score positive sloped diagonal
+for (let r = 0; r < ROW_COUNT - 3; r++) {
+  let window = [];
+  for (let c = 0; c < COLUMN_COUNT - 3; c++) {
+      for (let i = 0; i < WINDOW_LENGTH; i++) {
+          window.push(board[r + i][c + i]);
+      }
+      score += evaluateWindow(window, piece);
+  }
+}
+
+// Score negative sloped diagonal
+for (let r = 0; r < ROW_COUNT - 3; r++) {
+  let window = [];
+  for (let c = 0; c < COLUMN_COUNT - 3; c++) {
+      for (let i = 0; i < WINDOW_LENGTH; i++) {
+          window.push(board[r + 3 - i][c + i]);
+      }
+      score += evaluateWindow(window, piece);
+  }
+}
+    return score;
+}
+
+function isValidLocations(gameBoard, col){
+  console.log(gameBoard[0][col]);
+  return gameBoard[0][col] === 0
+
+}
+
+function getValidLocations(gameboard){
+  let validLocations = [];
+
+  for(let col = 0; col < 7; col++){
+    if (isValidLocations(gameboard, col)){
+      validLocations.push(col);
+
+    }
+  }
+  return validLocations
+
+}
+
+function getNextOpenRow(gameboard, col){
+  for(let row = 5; row >=0; row--){
+    if (gameboard[row][col] === 0){
+      return row
+}
+  }
+  return null;
+}
+
+function getCopy(gameboard){
+  let tempgameboard = [];
+  for (let i = 0; i < gameboard.length; i++) {
+    tempgameboard[i] = [];
+    for (let j = 0; j < gameboard[i].length; j++) {
+        tempgameboard[i][j] = gameboard[i][j];
+    }
+}
+return tempgameboard;
+}
+
+function getBestMove(gameboard, piece){
+  let bestscore = -1000;
+  let validLocations = getValidLocations(gameboard);
+  console.log(validLocations);
+  //console.log(validLocations.length);
+  //random column of the valid locations
+  let best_col = validLocations[Math.floor(Math.random() * (validLocations.length + 1))]
+  for(let col = 0; col < validLocations.length + 1; col++){
+    let openrow = getNextOpenRow(gameboard, col);
+    //gameboard.copy() - dont modify actual gameboard
+    //check if the row is not closed
+    if (openrow!=null){
+      let tempgameboard = getCopy(gameboard);
+    //place the piece at that location in the temp gameboard
+    tempgameboard[openrow][col] = piece;
+    let score = scorePosition(tempgameboard, piece)
+    console.log( "for col: " + col + " and player " + piece + " --> " + score)
+    if(score > bestscore){
+      bestscore = score;
+      //console.log("the best score for the " + piece + " is " + bestscore);
+      best_col = col;
+    }
+
+  }
+    }
+    console.log("player " + piece + " should play the col " + best_col);
+    return best_col;
+  }
+
 
 
 
@@ -128,7 +278,7 @@ router.get('/', async function(req, res, next) {
     CurrentPlayer = await getCurrentPlayer(req);
 
     // Send the game board data as JSON to front end
-    res.json({ gameBoard: gameBoard, ColumnState: ColumnState, CellState: CurrentPlayer});
+    res.json({gameBoard: gameBoard, ColumnState: ColumnState, CellState: CurrentPlayer});
     
   } catch (error) {
     console.error('Error retrieving game state:', error);
@@ -263,7 +413,13 @@ router.get('/connect4', async function(req, res, next) {
        }
    }
  }
-    res.json({ message: 'Received row and column data' });
+  //after checking if 1 one the game send instrcutions for 2's move to the front end
+  if(cellstate === 1){
+    res.json(getBestMove(gameBoard,2));
+
+  } else {
+    res.json("Player Move");
+  }
    });
  
  module.exports = router;
