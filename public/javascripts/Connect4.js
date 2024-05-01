@@ -194,7 +194,7 @@ function setPiece(event) {
       CurrentPlayer = YellowPlayer; // Switch to the next player
 
       // Trigger Yellow's move after a delay
-      setTimeout(placeYellowPiece, 2000); // Adjust delay as needed
+      setTimeout(placeYellowPiece, 10000); // Adjust delay as needed
   }
 }
 
