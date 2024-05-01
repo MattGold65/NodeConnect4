@@ -5,9 +5,9 @@
 </head>
 <body>
     <div id="message"></div>
+    <div id="waitingMessage" style="display: none;">Waiting for AI...</div>
 
     <div class="board"></div>
-
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const name = urlParams.get('message');

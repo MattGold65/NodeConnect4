@@ -5,7 +5,6 @@ var gameOver = false;
 var board;
 var ColumnState = [5,5,5,5,5,5,5];
 var BestMove;
-
 var rows = 6;
 var columns = 7;
 
@@ -27,6 +26,18 @@ function createCells() {
         cell.addEventListener("click", setPiece);
         
     }
+}
+
+// Function to show the waiting message
+function showWaitingMessage() {
+  const waitingMessage = document.getElementById('waitingMessage');
+  waitingMessage.style.display = 'block';
+}
+
+// Function to hide the waiting message
+function hideWaitingMessage() {
+  const waitingMessage = document.getElementById('waitingMessage');
+  waitingMessage.style.display = 'none';
 }
 
 // Function to load the game state from localStorage
@@ -126,7 +137,11 @@ function setGameBoardData(row, column, gravityState){
     } else {
         // server will send best move
         console.log(data);
-        BestMove = data;
+
+        if (data != "Player Move"){
+          BestMove = data;
+        }
+
     }
 })
 .catch(error => {
@@ -134,13 +149,17 @@ function setGameBoardData(row, column, gravityState){
 });
 }
 //AI impmenetation
-function placeYellowPiece() {
+async function placeYellowPiece() {
+
+  // Show waiting message before AI move
+  showWaitingMessage();
+
   if (gameOver) {
     return;
 }
 
   // Choose a random column from available columns
-  //const randomColumnIndex = Math.floor(Math.random() * availableColumns.length);
+  await waitForBestMove();
   const randomColumn = BestMove;
 
   // Find the corresponding row for the chosen column
@@ -148,6 +167,7 @@ function placeYellowPiece() {
 
   // Select the cell to place the piece
   const selector = `.cell[data-row="${row}"][data-column="${randomColumn}"]`;
+  console.log("Selector:", selector); // Add logging to check the selector
   const cellDiv = document.querySelector(selector);
 
   // Update the ColumnState and set the gravityState
@@ -161,10 +181,33 @@ function placeYellowPiece() {
 
   // Switch to the next player
   CurrentPlayer = RedPlayer;
+
+  // Reset BestMove to wait for the next move
+  BestMove = undefined;
+
+  // Hide waiting message after AI move
+  hideWaitingMessage();
+}
+
+async function waitForBestMove() {
+  return new Promise(resolve => {
+      // Define a function to check if BestMove is updated
+      function checkBestMove() {
+          // If BestMove is updated, resolve the promise
+          if (BestMove !== undefined) {
+              resolve();
+          } else {
+              // If not updated, check again after a short delay
+              setTimeout(checkBestMove, 100);
+          }
+      }
+      // Start checking for BestMove
+      checkBestMove();
+  });
 }
 
 
-function setPiece(event) {
+async function setPiece(event) {
   if (gameOver) {
       return;
   }
@@ -194,7 +237,9 @@ function setPiece(event) {
       CurrentPlayer = YellowPlayer; // Switch to the next player
 
       // Trigger Yellow's move after a delay
-      setTimeout(placeYellowPiece, 30000); // Adjust delay as needed
+      //30
+      placeYellowPiece(); // Adjust delay as needed
+
   }
 }
 
