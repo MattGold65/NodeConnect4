@@ -131,7 +131,7 @@ function evaluateWindow(window, piece) {
   }
 
   if (window.filter(item => item === oppPiece).length === 3 && window.filter(item => item === EMPTY).length === 1) {
-    score -= 80;
+    score -= 4;
   }
 
   return score;
