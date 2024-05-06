@@ -92,12 +92,12 @@ app.use(express.static(path.join(__dirname, 'public'), {
     }
   }
 }));
-
+//init routes
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use('/game', Connect4Router);
 app.use('/game/connect4', Connect4Router);
-// Serve static files from the 'public' directory
+// Serve static files from the 'public' directory. Sends Connect4.html through static game route
 app.use('/game', express.static(path.join(__dirname, 'public')));
 
 module.exports = app;

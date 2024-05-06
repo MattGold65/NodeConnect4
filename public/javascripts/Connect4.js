@@ -251,12 +251,23 @@ function setGameBoardUI(gameBoard) {
   }
 }
 
+/*
+ Following functions (setGravity, setPlayer, getGameBoardData) are used to retreieve the latest game state of the browser is refreshed.
+ This allows the user to exit the connect 4 web application before finishing a game without losing their current last game state.
+ */
+
+
+ //Function passes in latest gravity state from backend - sets it to be the column state
 function setGravity(gravState) {
   for (let col = 0; col < columns; col++) {
     ColumnState[col] = gravState[col];
   }
 }
 
+/* 
+Function passes the latest player who has went.
+If the AI has gone last or no one has gone yet - its the players turn, otherwise its the AI's turn.
+*/
 function setPlayer(CellState) {
   if (CellState === 2 || CellState === 0) {
     CurrentPlayer = RedPlayer;
@@ -267,13 +278,16 @@ function setPlayer(CellState) {
 
 // Function to fetch the game board data from the backend
 function getGameBoardData() {
+  //get request to /game
   fetch('/game')
     .then(response => {
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }
+      //return json with data
       return response.json();
     })
+    //parse json
     .then(data => {
       // Process the game board data as usual
       setGameBoardUI(data.gameBoard);
@@ -284,16 +298,20 @@ function getGameBoardData() {
       console.error('There was a problem with fetching game board data:', error);
     });
 }
-
+//Runs the javascript when the html page is visited
 window.onload = function () {
   // Add event listener to the always visible return home button
   const alwaysReturnHomeButton = document.getElementById('alwaysReturnHomeButton');
+  // Button red button - always allow user to go back to login/profile page
   alwaysReturnHomeButton.addEventListener("click", () => {
     // Redirect to return home
     window.location.href = "/users/login";
   });
+  // init board and listen for player move
   createCells();
+  // load the game state from local storage
   getGameState();
+  // fetch gameboard data from backend - returns empty json if new game 
   getGameBoardData();
 
 };

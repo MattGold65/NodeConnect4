@@ -1,3 +1,7 @@
+/*
+JS to add functionality to signup.html
+*/
+
 const urlParams = new URLSearchParams(window.location.search);
 const message = urlParams.get('error');
 

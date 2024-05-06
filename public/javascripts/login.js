@@ -1,3 +1,7 @@
+/*
+Javascript to add functionality to login.html
+*/
+
 const urlParams = new URLSearchParams(window.location.search);
 const message = urlParams.get('message');
 

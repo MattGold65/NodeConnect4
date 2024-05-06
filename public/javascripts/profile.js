@@ -1,7 +1,8 @@
-// Function to calculate total wins and losses
+// Function to calculate total wins and losses based on queried data from the users win loss table
 function calculateTotal(data) {
     let totalWins = 0;
     let totalLosses = 0;
+    // for each row of data if its a win count it as a win else count as a loss
     data.forEach(row => {
       if (row.win_or_loss === 'Win') {
         totalWins++;
@@ -9,6 +10,7 @@ function calculateTotal(data) {
         totalLosses++;
       }
     });
+    // return the total wins and losses
     return { totalWins, totalLosses };
   }
   
@@ -21,6 +23,11 @@ function calculateTotal(data) {
     document.getElementById('profile').appendChild(totalElement);
   }
 
+/*
+Profile Component retrieves json infomation from a querry that returns the accounts total wins and losses.
+Once that infomation is found the json response is returned. Wins and losses are counted using the calculateTotal
+function and html table with games won and lost is inserted into profile.html.
+*/
 const ProfileComponent = () => {
     const [data, setData] = React.useState([]);
     const [searchTerm, setSearchTerm] = React.useState('');
