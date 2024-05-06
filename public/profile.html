@@ -1,30 +1,47 @@
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Express</title>
   <link rel="stylesheet" href="/stylesheets/style.css">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/simple-datatables@latest/dist/style.css" rel="stylesheet" type="text/css">
 </head>
 <body>
   <nav class="menu">
-		<ul>
-			<li><a href="/">Back to Home</a> | </li>
-			<li><a href="logout">Log out</a></li>
-		</ul>
+    <ul>
+      <li><a href="/">Back to Home</a> | </li>
+      <li><a href="logout">Log out</a></li>
+    </ul>
   </nav>
-  <h1><div id="name"></div> </h1>
-  <h2>Welcome to your profile!</h2>
-  <h3>Feel free to make this page user friendly.</h3>
-  <br>
-  <button onclick="navigateToConnect4()">Play Connect4</button>
+  <div class="container">
+    <header>
+      <h1>Welcome <span id="name"></span> to your Connect 4 profile!</h1>
+    </header>
+    <div id="total"></div> <!-- Total Wins and Losses -->
+    <div id="profile"></div> <!-- Table will be rendered here -->
+    <button onclick="navigateToConnect4()">Play Connect4</button>
+  </div>
+
+  <!-- Load React and Babel scripts -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin="anonymous"></script>
+
+  <!-- Load your React component script -->
+  <script type="text/babel" src="/game/javascripts/Profile.js"></script>
+
   <script>
+    // Function to navigate to Connect4 game
+    function navigateToConnect4() {
+      window.location.href = '/game/Connect4';
+    }
+
+    // Fetch the name parameter from the URL and display it
     const urlParams = new URLSearchParams(window.location.search);
     const name = urlParams.get('name');
     if (name) {
       document.getElementById('name').innerHTML = name;
-    }
-
-    function navigateToConnect4() {
-      window.location.href = '/game/Connect4';
     }
   </script>
 </body>

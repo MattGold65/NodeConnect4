@@ -4,8 +4,10 @@ var path = require('path');
 var env = require('dotenv').config();
 var passport = require('passport');
 var bcrypt = require('bcryptjs');
+const { Query } = require('pg');
 var tableMoves = 'connect4_game_state_';
 var tableGravity = 'connect4_gravity_state_';
+var tableWL = 'connect4_W_L_Record_';
 
 const Client = require('pg').Client;
 const client = new Client({
@@ -79,10 +81,18 @@ client.query(query)
 .catch(error => console.error('Error creating gravity table:', error));
 }
 
+function initRecordTable(req){
+  const query = `CREATE TABLE IF NOT EXISTS ${tableWL + req.body.username} (game_number SERIAL, Win_or_Loss VARCHAR(10) NOT NULL)`;
+client.query(query)
+.then(result => console.log('Record table created successfully'))
+.catch(error => console.error('Error creating gravity table:', error));
+
+}
+
 function initUser(req, res, next){
   var salt = bcrypt.genSaltSync(10);
   var password = bcrypt.hashSync(req.body.password, salt);
-
+  initRecordTable(req);
   setUserAccount(req, res, password);
   initCellValueTable(req);
 
@@ -115,6 +125,21 @@ router.get('/profile',loggedIn, function(req, res){
   // req.user: passport middleware adds "user" object to HTTP req object
   res.sendFile(path.join(__dirname,'..', 'public','profile.html'));
 });
+
+router.get('/profileJSON', function(req, res){
+  const name = req.query.name; // Extract query parameter 'name'
+  const query = `SELECT * FROM ${tableWL + req.user.username}`;
+  console.log("Query:", query); // Log the generated query
+  client.query(query, function(err, result){
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+    res.json(result.rows);
+    console.log(result.rows);
+  });
+});
+
 
 // localhost:3000/users/login
 router.get('/login', notLoggedIn, function(req, res){

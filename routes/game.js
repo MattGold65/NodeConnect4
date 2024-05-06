@@ -3,7 +3,8 @@ var router = express.Router();
 var path = require('path');
 var env = require('dotenv').config();
 var tableMoves = 'connect4_game_state_';
-var tableGravity = 'connect4_gravity_state_'
+var tableGravity = 'connect4_gravity_state_';
+var tableWL = 'connect4_W_L_Record_';
 
 const Client = require('pg').Client;
 const client = new Client({
@@ -57,6 +58,17 @@ async function setGavityValue(req) {
       return;
     }
   });
+}
+
+async function setResult(req, result) {
+  try {
+     
+      const query = `INSERT INTO ${tableWL + req.user.username} (Win_or_Loss) VALUES ($1)`;
+      await client.query(query, [result]);
+      console.log(`Inserted game result ${result}`);
+  } catch (error) {
+      console.error("Error inserting game result:", error);
+  }
 }
 
 async function getCellValues(req, gameBoard) {
@@ -451,11 +463,13 @@ router.post('/', async function (req, res, next) {
   if (isWinningMove(cellstate, gameBoard) && cellstate === 1) {
     setCellValues(req);
     setGravityValues(req);
+    setResult(req,"Win");
     return res.json({ win: true, message: 'RED has won' });
 
   } else if (isWinningMove(cellstate, gameBoard) && cellstate === 2) {
     setCellValues(req);
     setGravityValues(req);
+    setResult(req,"Loss");
     return res.json({ win: true, message: 'YELLOW has won' });
   }
   //after checking if 1 one the game send instrcutions for 2's move to the front end
